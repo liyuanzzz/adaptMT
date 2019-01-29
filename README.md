@@ -1,3 +1,12 @@
+# Introduction
+
+This is my personal build of the `adaptMT` package with necessary modifications
+for my research and [Advanced Statistical Computing course](https://www.refsmmat.com/courses/751/).
+The gaol is to eventually submit the most useful changes I make for practical 
+implementations of AdaPT as pull requests to the original package.
+
+The rest of the README proceeds as the original README.
+
 # adaptMT
 
 [![Build Status](https://travis-ci.org/lihualei71/adaptMT.svg?branch=master)](https://travis-ci.org/lihualei71/adaptMT)
