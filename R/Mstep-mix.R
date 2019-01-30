@@ -33,7 +33,9 @@ Mstep_mix <- function(x, pvals, dist,
     res <- list(pix = pi_res$fitv,
                 mux = mu_res$fitv,
                 pi_info = pi_res$info,
-                mu_info = mu_res$info)
+                mu_info = mu_res$info,
+                pi_fit = pi_res$model_fit,
+                mu_fit = mu_res$model_fit)
 
     return(res)
 }

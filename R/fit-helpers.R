@@ -27,7 +27,8 @@ fit_pi <- function(fun, args, type = c("Mstep", "init")){
     }
     pix <- pminmax(pix, 0, 1)
 
-    return(list(fitv = pix, info = fit$info))
+    return(list(fitv = pix, info = fit$info,
+                model_fit = fit$model_fit))
 }
 
 fit_mu <- function(fun, args, dist, type = c("Mstep", "init")){
@@ -57,5 +58,6 @@ fit_mu <- function(fun, args, dist, type = c("Mstep", "init")){
         mux <- pmax(mux, 0)
     }
 
-    return(list(fitv = mux, info = fit$info))
+    return(list(fitv = mux, info = fit$info,
+                model_fit = fit$model_fit))
 }

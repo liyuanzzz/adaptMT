@@ -133,6 +133,7 @@ check_pkgs <- function(models){
 #' \item{dist}{same as the input \code{dist}}
 #' \item{models}{a list of \code{adapt_model} objects of length \code{params}. The model used in each fitting step. As in \code{params}, it only contains the model when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
 #' \item{info}{a list of length \code{nfits}. Each element is a list recording extra information in each fitting step, e.g. degree of freedom (df) and variable importance (vi). As in \code{params}, it only contains the model information when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
+#' \item{model_fit}{a list of length \code{nfits}. Each element is a list with the models fit in each step of the search for both pi and mu.}
 #' \item{args}{a list including the other inputs \code{nfits}, \code{nms}, \code{niter_fit}, \code{niter_ms}, \code{tol}, \code{cr}}.
 #'
 #' @examples
@@ -259,6 +260,7 @@ adapt <- function(x, pvals, models,
     params_return <- list() # parameters (including pix and mux)
     model_list <- list() # all selected models
     info_list <- list() # other information (df, vi, etc.)
+    model_fit_list <- list() # list of the actual fitted models
     reveal_order <- which((pvals > s) & (pvals < 1 - s)) # the order to be revealed
     if (length(reveal_order) > 0){
         init_pvals <- pvals[reveal_order]
@@ -303,6 +305,7 @@ adapt <- function(x, pvals, models,
             params <- ms_res$params
             model <- ms_res$model
             modinfo <- ms_res$info
+            model_fit <- ms_res$model_fit
         } else if (type == "fit"){
             fit_args <- c(
                 list(s = s, params0 = params, model = model),
@@ -312,6 +315,7 @@ adapt <- function(x, pvals, models,
             fit_res <- do.call(EM_mix, fit_args)
             params <- fit_res$params
             modinfo <- fit_res$info
+            model_fit <- fit_res$model_fit
         }
 
         if (length(params_return) == 0 ||
@@ -321,6 +325,7 @@ adapt <- function(x, pvals, models,
             params_return <- append(params_return, list(params))
             model_list <- append(model_list, list(model))
             info_list <- append(info_list, modinfo)
+            model_fit_list <- append(model_fit_list, model_fit)
         }
 
         ## Estimate local FDR
@@ -425,6 +430,7 @@ adapt <- function(x, pvals, models,
              dist = dist,
              models = model_list,
              info = info_list,
+             model_fit = model_fit_list,
              args = args),
         class = "adapt")
     return(res)

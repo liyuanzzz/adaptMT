@@ -4,11 +4,11 @@
 \alias{adapt}
 \title{Adaptive P-value Thresholding}
 \usage{
-adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45,
-  length(pvals)), alphas = seq(0.01, 1, 0.01), params0 = list(pix =
-  NULL, mux = NULL), nfits = 20, nms = 1, niter_fit = 10,
-  tol = 1e-04, niter_ms = 20, cr = "BIC", fs = TRUE,
-  verbose = list(print = TRUE, fit = FALSE, ms = TRUE))
+adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45, length(pvals)),
+  alphas = seq(0.01, 1, 0.01), params0 = list(pix = NULL, mux = NULL),
+  nfits = 20, nms = 1, niter_fit = 10, tol = 1e-04, niter_ms = 20,
+  cr = "BIC", fs = TRUE, verbose = list(print = TRUE, fit = FALSE, ms =
+  TRUE))
 }
 \arguments{
 \item{x}{covariates (i.e. side-information). Should be compatible to \code{models}. See Details}
@@ -52,6 +52,7 @@ adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45,
 \item{dist}{same as the input \code{dist}}
 \item{models}{a list of \code{adapt_model} objects of length \code{params}. The model used in each fitting step. As in \code{params}, it only contains the model when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
 \item{info}{a list of length \code{nfits}. Each element is a list recording extra information in each fitting step, e.g. degree of freedom (df) and variable importance (vi). As in \code{params}, it only contains the model information when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
+\item{model_fit}{a list of length \code{nfits}. Each element is a list with the models fit in each step of the search for both pi and mu.}
 \item{args}{a list including the other inputs \code{nfits}, \code{nms}, \code{niter_fit}, \code{niter_ms}, \code{tol}, \code{cr}}.
 }
 \description{

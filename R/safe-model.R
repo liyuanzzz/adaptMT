@@ -29,14 +29,15 @@ safe_glm <- function(formula, family, data, weights = NULL,
     info <- list(df = df)
 
     options(warn = 0)
-    
-    return(list(fitv = fitv, info = info))
+    # Return the model fit for the user to be able to access as well:
+    return(list(fitv = fitv, info = info,
+                model_fit = fit))
 }
 
 safe_gam <- function(formula, family, data, weights = NULL,
                       ...){
     options(warn = -1)
-    
+
     formula <- as.formula(formula)
     if (family$link %in% c("inverse", "log")){
         fit <- try(mgcv::gam(formula, family, data, weights, ...),
@@ -60,8 +61,9 @@ safe_gam <- function(formula, family, data, weights = NULL,
     info <- list(df = df)
 
     options(warn = 0)
-    
-    return(list(fitv = fitv, info = info))
+    # Return the model fit for the user to be able to access as well:
+    return(list(fitv = fitv, info = info,
+                model_fit = fit))
 }
 
 safe_glmnet <- function(x, y, family, weights = NULL,
@@ -74,7 +76,7 @@ safe_glmnet <- function(x, y, family, weights = NULL,
 
     if (family %in% c("gaussian", "binomial", "poisson", "multinomial", "cox", "mgaussian")){
         if (is.null(weights)){
-            fit <- glmnet::cv.glmnet(x, y, 
+            fit <- glmnet::cv.glmnet(x, y,
                                      family = family, ...)
         } else {
             weights <- pminmax(weights, 1e-5, 1-1e-5)
@@ -101,11 +103,12 @@ safe_glmnet <- function(x, y, family, weights = NULL,
         )
 
     beta <- coef(fit, s = "lambda.min")
-    vi <- as.numeric(beta != 0)[-1]    
+    vi <- as.numeric(beta != 0)[-1]
     df <- sum(vi) + 1
     info <- list(df = df, vi = vi)
 
     options(warn = 0)
-    
-    return(list(fitv = fitv, info = info))
+    # Return the model fit for the user to be able to access as well:
+    return(list(fitv = fitv, info = info,
+                model_fit = fit))
 }
