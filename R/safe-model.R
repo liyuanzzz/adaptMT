@@ -149,10 +149,6 @@ safe_xgboost <- function(x, y, family, weights = NULL, ...) {
   fitv <- predict(fit, newdata = x)
 
   info <- "empty"
-  beta <- coef(fit, s = "lambda.min")
-  vi <- as.numeric(beta != 0)[-1]
-  df <- sum(vi) + 1
-  info <- list(df = df, vi = vi)
 
   options(warn = 0)
   # Return the model fit for the user to be able to access as well:
