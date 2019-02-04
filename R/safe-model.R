@@ -112,3 +112,51 @@ safe_glmnet <- function(x, y, family, weights = NULL,
     return(list(fitv = fitv, info = info,
                 model_fit = fit))
 }
+
+# Function for training xgboost model:
+safe_xgboost <- function(x, y, family, weights = NULL, ...) {
+
+  options(warn = -1)
+
+  # For now we assume that the provided family argument is just a string
+  # indicating what type of function to use for the xgboost. This will decide
+  # what the objective argument is
+  if (class(family)[1] == "family"){
+    family <- family$family
+  }
+
+  # With the way xgboost is set up, each of the possible options will require
+  # separate instances, can just use a named vector to access each:
+  family_list <- c("gaussian" = "reg:linear",
+                   "binomial" = "binary:logistic",
+                   "poisson" = "count:poisson",
+                   "multinomial" = "multi:softmax",
+                   "cox" = "survival:cox",
+                   "Gamma" = "reg:gamma")
+
+  # If weights are provided then make sure they are within the bounds
+  if (!is.null(weights)) {
+    weights <- pminmax(weights, 1e-5, 1 - 1e-5)
+  }
+
+  # Fit the model using the provided family type as the objective with the
+  # additional passed in arguments:
+  fit <- xgboost::xgboost(data = x, label = y, weight = weights,
+                          objective = family_list[[family]],
+                          ...)
+
+  # Get the predicted values using the boosting model
+  fitv <- predict(fit, newdata = x)
+
+  info <- "empty"
+  beta <- coef(fit, s = "lambda.min")
+  vi <- as.numeric(beta != 0)[-1]
+  df <- sum(vi) + 1
+  info <- list(df = df, vi = vi)
+
+  options(warn = 0)
+  # Return the model fit for the user to be able to access as well:
+  return(list(fitv = fitv, info = info,
+              model_fit = fit))
+}
+

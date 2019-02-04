@@ -12,7 +12,7 @@ Encoding: UTF-8
 LazyData: true
 URL: https://arxiv.org/abs/1609.06035, https://github.com/lihualei71/adaptMT
 BugReports: https://github.com/lihualei71/adaptMT/issues
-Suggests: 
+Suggests:
     glmnet,
     HDtweedie,
     mgcv,
@@ -22,6 +22,7 @@ Suggests:
     rmarkdown,
     dplyr
 RoxygenNote: 6.1.0
-Imports: 
-    methods
+Imports:
+    methods,
+    xgboost
 VignetteBuilder: knitr

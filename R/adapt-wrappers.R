@@ -34,7 +34,7 @@ check_formulas <- function(formulas){
 #' There is no need to specify the name of the response variable, as this is handled in the function.
 #'
 #' When \code{x} has a few variables, it is common to use non-parametric GLM by replacing \code{x} by a spline basis of \code{x}. In this case, \code{\link[splines]{ns}} from \code{library(splines)} package is suggested.
-#' 
+#'
 #' @param pi_formulas a vector/list of strings/formulas. Formulas for fitting pi(x) by glm. See Details
 #' @param mu_formulas a vector/list of strings/formulas. Formulas for fitting mu(x) by glm. See Details
 #' @param piargs a list. Other arguments passed to glm for fitting pi(x)
@@ -54,7 +54,7 @@ check_formulas <- function(formulas){
 #' inds <- (x$x <= 5000)
 #' pvals <- pvals[inds]
 #' x <- x[inds,,drop = FALSE]
-#' 
+#'
 #' # Run adapt_glm
 #' library("splines")
 #' formulas <- paste0("ns(x, df = ", 6:10, ")")
@@ -68,14 +68,14 @@ check_formulas <- function(formulas){
 #' })
 #' res2 <- adapt(x = x, pvals = pvals, models = models,
 #'               dist = dist, nfits = 10)
-#' 
+#'
 #' # Check equivalence
 #' identical(res, res2)
 #' }
 #'
 #' @seealso
 #' \code{\link{adapt}}, \code{\link{adapt_gam}}, \code{\link{adapt_glmnet}}, \code{\link[stats]{glm}}, \code{\link[splines]{ns}}
-#' 
+#'
 #' @export
 adapt_glm <- function(x, pvals, pi_formulas, mu_formulas,
                       dist = beta_family(),
@@ -90,7 +90,7 @@ adapt_glm <- function(x, pvals, pi_formulas, mu_formulas,
     pi_formulas <- check_formulas(pi_formulas)
     mu_formulas <- check_formulas(mu_formulas)
     stopifnot(length(pi_formulas) == length(mu_formulas))
-        
+
     models <- lapply(1:length(pi_formulas), function(i){
         piargs <- c(list(formula = pi_formulas[[i]]), piargs)
         muargs <- c(list(formula = mu_formulas[[i]]), muargs)
@@ -115,7 +115,7 @@ adapt_glm <- function(x, pvals, pi_formulas, mu_formulas,
 #' There is no need to specify the name of the response variable, as this is handled in the function.
 #'
 #' When \code{x} has a few variables, it is common to use non-parametric GLM by replacing \code{x} by a spline basis of \code{x}. In this case, \code{\link[splines]{ns}} from \code{library(splines)} package or \code{\link[mgcv]{s}} from \code{mgcv} package are suggested. When \code{\link[mgcv]{s}} (from \code{mgcv} package) is used, it is treated as a single model because the knots will be selected automatically.
-#' 
+#'
 #' @param pi_formulas a vector/list of strings/formulas. Formulas for fitting pi(x) by gam. See Details
 #' @param mu_formulas a vector/list of strings/formulas. Formulas for fitting mu(x) by gam. See Details
 #' @param piargs a list. Other arguments passed to gam for fitting pi(x)
@@ -150,8 +150,8 @@ adapt_glm <- function(x, pvals, pi_formulas, mu_formulas,
 #' res <- adapt_gam(x = x, pvals = pvals, pi_formulas = formula,
 #'                  mu_formulas = formula, dist = dist, nfits = 5)
 #' }
-#' 
-#' 
+#'
+#'
 #' @export
 adapt_gam <- function(x, pvals, pi_formulas, mu_formulas,
                       piargs = list(), muargs = list(),
@@ -162,7 +162,7 @@ adapt_gam <- function(x, pvals, pi_formulas, mu_formulas,
     if (!is.data.frame(x)){
         stop("\'x\' must be a data.frame")
     }
-    
+
     if (!requireNamespace("mgcv", quietly = TRUE)){
         stop("'mgcv' package is required for 'adapt_gam'. Please intall.")
     }
@@ -170,7 +170,7 @@ adapt_gam <- function(x, pvals, pi_formulas, mu_formulas,
     pi_formulas <- check_formulas(pi_formulas)
     mu_formulas <- check_formulas(mu_formulas)
     stopifnot(length(pi_formulas) == length(mu_formulas))
-    
+
     models <- lapply(1:length(pi_formulas), function(i){
         piargs <- c(list(formula = pi_formulas[[i]]), piargs)
         muargs <- c(list(formula = mu_formulas[[i]]), muargs)
@@ -185,13 +185,13 @@ adapt_gam <- function(x, pvals, pi_formulas, mu_formulas,
 #' \code{adapt_glmnet} is a wrapper of \code{\link{adapt}} that fits pi(x) and mu(x) by \code{\link[glmnet]{glmnet}} from \code{glmnet} package.
 #'
 #' \code{adapt_glmnet} by default implements LASSO on \code{x} with lambda selected by cross-validation. Specify in \code{piargs} and \code{muargs} if ridge or elastic-net penalty is needed.
-#' 
+#'
 #' @param piargs a list. Other arguments passed to glmnet for fitting pi(x)
 #' @param muargs a list. Other arguments passed to glmnet for fitting mu(x)
 #' @param ... other arguments passed to \code{\link{adapt}} (except \code{models})
 #' @inheritParams adapt
 #'
-#' 
+#'
 #' @seealso
 #' \code{\link{adapt}}, \code{\link{adapt_glm}}, \code{\link{adapt_gam}}, \code{\link[glmnet]{glmnet}}
 #'
@@ -236,7 +236,7 @@ adapt_glmnet <- function(x, pvals,
     if (!is.matrix(x) && !inherits(x, "sparseMatrix")){
         stop("Invalid \'x\'. See \'?glmnet\' for details.")
     }
-    
+
     if (!requireNamespace("glmnet", quietly = TRUE)){
         stop("'glmnet' package is required for 'adapt_glmnet'. Please intall.")
     }
@@ -245,3 +245,72 @@ adapt_glmnet <- function(x, pvals,
 
     adapt(x, pvals, models, dist, s0, alphas, ...)
 }
+
+# ------------------------------------------------------------------------------
+
+#' Adaptive P-value Thresholding with XGBoost
+#'
+#' \code{adapt_xgboost} is a wrapper of \code{\link{adapt}} that fits pi(x) and mu(x) by \code{\link[xgboost]{xgboost}} from \code{xgboost} package.
+#'
+#' \code{adapt_xgboost} by default implements the default settings. Specify in \code{piargs} and \code{muargs} if other arguments are needed
+#'
+#' @param piargs a list. Other arguments passed to glmnet for fitting pi(x)
+#' @param muargs a list. Other arguments passed to glmnet for fitting mu(x)
+#' @param ... other arguments passed to \code{\link{adapt}} (except \code{models})
+#' @inheritParams adapt
+#'
+#'
+#' @seealso
+#' \code{\link{adapt}}, \code{\link{adapt_glm}}, \code{\link{adapt_gam}}, \code{\link[xgboost]{xgboost}}
+#'
+#' @examples
+#' \donttest{
+#' # Generate a 100-dim covariate x
+#' set.seed(0)
+#' m <- 100
+#' n <- 1000
+#' x <- matrix(runif(n * m), n, m)
+#'
+#' # Generate the parameters from a conditional two-group
+#' # logistic-Gamma GLM  where pi(x) and mu(x) are both
+#' # linear in x. pi(x) has an intercept so that the average
+#' # of pi(x) is 0.3
+#' inv_logit <- function(x) {exp(x) / (1 + exp(x))}
+#' pi1 <- 0.3
+#' beta.pi <- c(3, 3, rep(0, m-2))
+#' beta0.pi <- uniroot(function(b){
+#'     mean(inv_logit(x %*% beta.pi + b)) - pi1
+#' }, c(-100, 100))$root
+#' pi <- inv_logit(x %*% beta.pi + beta0.pi)
+#' beta.mu <- c(2, 2, rep(0, m-2))
+#' beta0.mu <- 0
+#' mu <- pmax(1, x %*% beta.mu + beta0.mu)
+#'
+#' # Generate p-values
+#' H0 <- as.logical(ifelse(runif(n) < pi, 1, 0))
+#' y <- ifelse(H0, rexp(n, 1/mu), rexp(n, 1))
+#' pvals <- exp(-y)
+#'
+#' # Run adapt_xgboost
+#' res <- adapt_xgboost(x, pvals, s0 = rep(0.15, n), nfits = 5)
+#' }
+#' @export
+adapt_xgboost <- function(x, pvals,
+                         piargs = list(), muargs = list(),
+                         dist = beta_family(),
+                         s0 = rep(0.45, length(pvals)),
+                         alphas = seq(0.01, 1, 0.01),
+                         ...){
+  if (!is.matrix(x) && !inherits(x, "sparseMatrix")){
+    stop("Invalid \'x\'. See \'?glmnet\' for details.")
+  }
+
+  if (!requireNamespace("xgboost", quietly = TRUE)){
+    stop("'xgboost' package is required for 'adapt_xgboost'. Please intall.")
+  }
+
+  models <- gen_adapt_model(name = "xgboost", piargs = piargs, muargs = muargs)
+
+  adapt(x, pvals, models, dist, s0, alphas, ...)
+}
+

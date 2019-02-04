@@ -302,3 +302,64 @@ gen_adapt_model_glmnet <- function(dist,
                     name = "glmnet")
 }
 
+gen_adapt_model_xgboost <- function(dist,
+                                   piargs = list(),
+                                   muargs = list()){
+  pifun <- function(x, y, weights, ...){
+    safe_xgboost(x, y, weights = weights,
+                family = "binomial", ...)
+  }
+
+
+  mufun <- function(x, y, weights, ...){
+    safe_xgboost(x, y, weights = weights,
+                family = dist$family, ...)
+  }
+
+  pifun_init <- function(x, pvals, s, ...){
+    J <- ifelse(
+      pvals < s | pvals > 1 - s, 1,
+      2 * s / (2 * s - 1)
+    )
+    if (any(s >= 0.49)){
+      J[s >= 0.49] <- 0
+    }
+
+    fun <- function(x, y, ...){
+      safe_xgboost(x, y, family = "gaussian", ...)
+    }
+
+    args <- list(...)
+    args <- complete_args(x, J, fun, args)
+
+    fit_pi(fun, args, type = "init")
+  }
+
+  mufun_init <- function(x, pvals, s, ...){
+    phat <- ifelse(
+      pvals < s | pvals > 1 - s,
+      pmin(pvals, 1 - pvals),
+      pvals
+    )
+    phat <- pminmax(phat, 1e-15, 1-1e-15)
+    yhat <- dist$g(phat)
+
+    fun <- function(x, y, ...){
+      safe_xgboost(x, y, family = dist$family$family, ...)
+    }
+
+    args <- list(...)
+    args <- complete_args(x, yhat, fun, args)
+
+    fit_mu(fun, args, dist, type = "init")
+  }
+
+  piargs_init <- piargs
+  muargs_init <- muargs
+
+  gen_adapt_model(pifun, mufun, pifun_init, mufun_init,
+                  piargs, muargs, piargs_init, muargs_init,
+                  name = "xgboost")
+}
+
+

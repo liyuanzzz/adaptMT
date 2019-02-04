@@ -84,6 +84,13 @@ check_pkgs <- function(models){
             stop("'glmnet' package not found. Please install.")
         }
     }
+    if ("xgboost" %in% models_names){
+      ind <- which(models_names == "xgboost")
+      tmp <- sapply(models, function(model){is.null(model$algo)})
+      if (any(tmp) && !requireNamespace("xgboost", quietly = TRUE)){
+        stop("'xgboost' package not found. Please install.")
+      }
+    }
     return(invisible())
 }
 
