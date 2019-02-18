@@ -156,3 +156,83 @@ safe_xgboost <- function(x, y, family, weights = NULL, ...) {
               model_fit = fit))
 }
 
+# Function for training bam model with options for running in parallel
+
+safe_bam <- function(formula, family, data, weights = NULL,
+                     ...){
+  options(warn = -1)
+
+  # Grab the additional arguments provided:
+  args <- list(...)
+
+  # Now check to see if the parallel argument is provided, check if it
+  # set to be TRUE and then see if the number of clusters was provided.
+  # This is assuming that the user provides the arguments `parallel` and
+  # `n_clusters`:
+
+  # First see if parallel is an argument:
+  if (any(names(args) == "parallel")) {
+
+    # See if it is TRUE and if there is more than one core found:
+    if (args$parallel & (parallel::detectCores() > 1)) {
+
+      # Now check to see if n_clusters was provided:
+      if (any(names(args) == "n_clusters")) {
+
+        # Now set the number of cores based on this value:
+        if (parallel::detectCores() >= args$n_clusters) {
+          cl <- parallel::makeCluster(args$n_clusters)
+
+          # Remove n_clusters from the list
+          args$n_clusters <- NULL
+
+        } else {
+          # Just use the number of cores:
+          cl <- parallel::makeCluster(parallel::detectCores())
+        }
+      } else {
+        # Again just use the actual number:
+        cl <- parallel::makeCluster(parallel::detectCores())
+      }
+
+
+    }
+
+    # Remove parallel from args:
+    args$parallel <- NULL
+
+  } else {
+    # Otherwise there do not run in parallel:
+    cl <- NULL
+  }
+
+
+  formula <- as.formula(formula)
+  if (family$link %in% c("inverse", "log")){
+    fit <- try(mgcv::bam(formula, family, data, weights,
+                         cluster = cl, args),
+               silent = TRUE)
+    if (class(fit)[1] == "try-error"){
+      mod_mat <- model.matrix(formula, data = data)
+      p <- ncol(mod_mat) - 1
+      start <- c(1, rep(0, p))
+      fit <- mgcv::bam(formula, family, data, weights,
+                       cluster = cl, start = start, args)
+    }
+  } else {
+    fit <- mgcv::bam(formula, family, data, weights,
+                     cluster = cl, args)
+  }
+
+  fitv <- as.numeric(
+    predict(fit, type = "response")
+  )
+
+  df <- fit$rank
+  info <- list(df = df)
+
+  options(warn = 0)
+  # Return the model fit for the user to be able to access as well:
+  return(list(fitv = fitv, info = info,
+              model_fit = fit))
+}

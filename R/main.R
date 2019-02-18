@@ -77,6 +77,15 @@ check_pkgs <- function(models){
             stop("'mgcv' package not found. Please install.")
         }
     }
+
+    if ("bam" %in% models_names){
+      ind <- which(models_names == "bam")
+      tmp <- sapply(models, function(model){is.null(model$algo)})
+      if (any(tmp) && !requireNamespace("mgcv", quietly = TRUE)){
+        stop("'mgcv' package not found. Please install.")
+      }
+    }
+
     if ("glmnet" %in% models_names){
         ind <- which(models_names == "glmnet")
         tmp <- sapply(models, function(model){is.null(model$algo)})
