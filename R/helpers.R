@@ -113,6 +113,9 @@ complete_model <- function(model, dist){
                "gam" = gen_adapt_model_gam(
                    dist, model$args$piargs, model$args$muargs
                    ),
+               "bam" = gen_adapt_model_bam(
+                 dist, model$args$piargs, model$args$muargs
+               ),
                "glmnet" = gen_adapt_model_glmnet(
                    dist, model$args$piargs, model$args$muargs
                    ),
