@@ -330,8 +330,8 @@ adapt_xgboost <- function(x, pvals,
 #'
 #' When \code{x} has a few variables, it is common to use non-parametric GLM by replacing \code{x} by a spline basis of \code{x}. In this case, \code{\link[splines]{ns}} from \code{library(splines)} package or \code{\link[mgcv]{s}} from \code{mgcv} package are suggested. When \code{\link[mgcv]{s}} (from \code{mgcv} package) is used, it is treated as a single model because the knots will be selected automatically.
 #'
-#' By including \code{parallel} and \code{n_clusters} arguments for \code{piargs} and \code{muargs}
-#' the two models can be fit with multiple cores.
+#' By including \code{is_parallel} and \code{n_clusters} arguments for \code{piargs} and \code{muargs}
+#' the two models can be fit with multiple cores using the \code{library(parallel)} package.
 #'
 #' @param pi_formulas a vector/list of strings/formulas. Formulas for fitting pi(x) by gam. See Details
 #' @param mu_formulas a vector/list of strings/formulas. Formulas for fitting mu(x) by gam. See Details
