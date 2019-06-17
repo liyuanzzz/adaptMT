@@ -24,5 +24,6 @@ Suggests:
 RoxygenNote: 6.1.0
 Imports:
     methods,
-    xgboost
+    xgboost,
+    caret
 VignetteBuilder: knitr

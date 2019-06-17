@@ -314,6 +314,83 @@ adapt_xgboost <- function(x, pvals,
   adapt(x, pvals, models, dist, s0, alphas, ...)
 }
 
+# Next create a version of the XGBoost implementation that is meant for the CV selection:
+
+#' Adaptive P-value Thresholding with XGBoost using holdout log-likelihood CV for tuning
+#'
+#' \code{adapt_xgboost_cv} is a wrapper of \code{\link{adapt}} that fits pi(x) and mu(x) by \code{\link[xgboost]{xgboost}} from \code{xgboost} package.
+#'
+#' \code{adapt_xgboost_cv} by default implements the default settings. Specify in \code{piargs} and \code{muargs} if other arguments are needed
+#'
+#' @param piargs a list. Other arguments passed to xgboost for fitting pi(x)
+#' @param muargs a list. Other arguments passed to xgboost for fitting mu(x)
+#' @param ... other arguments passed to \code{\link{adapt}} (except \code{models}) such as \code{n_folds}
+#' @inheritParams adapt
+#'
+#'
+#' @seealso
+#' \code{\link{adapt}}, \code{\link{adapt_xgboost}}, \code{\link[xgboost]{xgboost}}
+#'
+#' @examples
+#' \donttest{
+#' # Generate a 100-dim covariate x
+#' set.seed(0)
+#' m <- 100
+#' n <- 1000
+#' x <- matrix(runif(n * m), n, m)
+#'
+#' # Generate the parameters from a conditional two-group
+#' # logistic-Gamma GLM  where pi(x) and mu(x) are both
+#' # linear in x. pi(x) has an intercept so that the average
+#' # of pi(x) is 0.3
+#' inv_logit <- function(x) {exp(x) / (1 + exp(x))}
+#' pi1 <- 0.3
+#' beta.pi <- c(3, 3, rep(0, m-2))
+#' beta0.pi <- uniroot(function(b){
+#'     mean(inv_logit(x %*% beta.pi + b)) - pi1
+#' }, c(-100, 100))$root
+#' pi <- inv_logit(x %*% beta.pi + beta0.pi)
+#' beta.mu <- c(2, 2, rep(0, m-2))
+#' beta0.mu <- 0
+#' mu <- pmax(1, x %*% beta.mu + beta0.mu)
+#'
+#' # Generate p-values
+#' H0 <- as.logical(ifelse(runif(n) < pi, 1, 0))
+#' y <- ifelse(H0, rexp(n, 1/mu), rexp(n, 1))
+#' pvals <- exp(-y)
+#'
+#' # Run adapt_xgboost
+#' res <- adapt_xgboost(x, pvals, s0 = rep(0.15, n), nfits = 5)
+#' }
+#' @export
+adapt_xgboost_cv <- function(x, pvals,
+                          piargs = list(), muargs = list(),
+                          dist = beta_family(),
+                          s0 = rep(0.45, length(pvals)),
+                          alphas = seq(0.01, 1, 0.01),
+                          ...){
+  if (!is.matrix(x) && !inherits(x, "sparseMatrix")){
+    stop("Invalid \'x\'. See \'?glmnet\' for details.")
+  }
+
+  if (!requireNamespace("xgboost", quietly = TRUE)){
+    stop("'xgboost' package is required for 'adapt_xgboost'. Please intall.")
+  }
+
+  stopifnot(length(piargs) == length(muargs))
+
+  models <- lapply(1:length(piargs), function(i){
+    piargs <- piargs[[i]]
+    muargs <- muargs[[i]]
+    gen_adapt_model(name = "xgboost", piargs = piargs, muargs = muargs)
+  })
+
+  adapt(x, pvals, models, dist, s0, alphas, use_cv = TRUE,
+        pred_model_pi = pred_xgboost_pi,
+        pred_model_mu = pred_xgboost_mu, ...)
+}
+
+
 #' Adaptive P-value Thresholding with Generalized Additive Models for large datasets
 #'
 #' \code{adapt_bam} is a wrapper of \code{\link{adapt}} that fits pi(x) and mu(x) by \code{\link[mgcv]{bam}} from \code{mgcv} package.
