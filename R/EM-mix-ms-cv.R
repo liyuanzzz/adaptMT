@@ -18,10 +18,11 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
 
   m <- length(models)
   if (verbose) {
-    cat(paste0("Model selection  with ", n_folds, "-fold cross-validation starts!\n"))
+    cat(paste0("Model selection with ", n_folds, "-fold cross-validation starts!\n"))
     cat("Shrink the set of candidate models or number of folds if it is too time-consuming.")
     cat("\n")
     pb <- txtProgressBar(min = 0, max = m, style = 3, width = 50)
+    cat("\n")
   }
 
   # Generate a list of the hold-out indices - use the createFolds function in
@@ -45,7 +46,9 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                                                                                  mux = params0$mux[-k_cv_holdout_i[[fold_i]]])
                                                          }
                                                          fit <- try(
-                                                           EM_mix(x[-k_cv_holdout_i[[fold_i]],],
+                                                           # Use as.matrix again to handle the case
+                                                           # where only one covariate is used:
+                                                           EM_mix(as.matrix(x[-k_cv_holdout_i[[fold_i]],]),
                                                                   pvals[-k_cv_holdout_i[[fold_i]]],
                                                                   s[-k_cv_holdout_i[[fold_i]]], dist,
                                                                   model, train_params0, niter, tol,
@@ -53,7 +56,8 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                                                            silent = TRUE
                                                          )
                                                          if (class(fit)[1] == "try-error"){
-                                                           warning(paste0("Model ", i, " fails."))
+                                                           warning(paste0("Model ", model_i, "with fold ",
+                                                                          fold_i," fails."))
                                                            NA
                                                          } else {
                                                            # Use the fitted parameters on the training
@@ -61,12 +65,13 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                                                            # on the holdout p-values.
 
                                                            # First compute the values of pix and mux using
-                                                           # the model fits:
+                                                           # the model fits (again use as.matrix for x to
+                                                           # handle the situation with only 1 covariate):
                                                            test_pix <- pred_model_pi(fit$model_fit$pi,
-                                                                                     x[k_cv_holdout_i[[fold_i]],])
+                                                                                     as.matrix(x[k_cv_holdout_i[[fold_i]],]))
                                                            test_mux <- pred_model_mu(fit$model_fit$mu,
                                                                                      dist,
-                                                                                     x[k_cv_holdout_i[[fold_i]],])
+                                                                                     as.matrix(x[k_cv_holdout_i[[fold_i]],]))
 
                                                            # Get the E-step parameters:
                                                            test_Estep <- Estep_mix(pvals[k_cv_holdout_i[[fold_i]]],
@@ -84,6 +89,7 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                             #browser()
                             if (verbose) {
                               setTxtProgressBar(pb, model_i)
+                              cat("\n")
                             }
                             return(loglik_sum)
                           })
@@ -96,6 +102,10 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
 
   # Otherwise which was the best model:
   best_model_i <- which.max(model_results)
+  if (verbose) {
+    cat(paste0("Selected model parameter choice: ", best_model_i, "!"))
+    cat("\n")
+  }
   # Now just fit the best model on all data:
   model <- complete_model(models[[best_model_i]], dist)
   final_fit <- EM_mix(x, pvals, s, dist, model, params0, niter, tol,
