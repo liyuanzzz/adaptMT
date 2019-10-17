@@ -1,7 +1,7 @@
 # Introduction
 
 This build of the `adaptMT` package provides necessary modifications for using 
-[AdaPT](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12274) with gradient boosted trees via the [`xgboost`](https://xgboost.readthedocs.io/en/latest/R-package/xgboostPresentation.html). Please see our pre-print, [_Application of post-selection inference to multi-omics data yields insights into the etiologies of human diseases_](https://www.biorxiv.org/content/early/2019/10/16/806471.full.pdf) for details
+[AdaPT](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12274) with gradient boosted trees via the [`xgboost`](https://xgboost.readthedocs.io/en/latest/R-package/xgboostPresentation.html) library. Please see our pre-print, [_Application of post-selection inference to multi-omics data yields insights into the etiologies of human diseases_](https://www.biorxiv.org/content/early/2019/10/16/806471.full.pdf) for details
 regarding our implementation. An updated tutorial to using both the `adapt_xgboost` and `adapt_xgboost_cv` functions will be available soon. The goal is to integrate the functionality of these modifications into the original [`adaptMT`](https://github.com/lihualei71/adaptMT) package that is available on the CRAN.
 
 Use the following to install the package with the updates:
