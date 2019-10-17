@@ -46,7 +46,7 @@ EM_mix <- function(x, pvals, s, dist, model,
             Estep_mix(pvals, s, dist, pix, mux)
         Mstep_res <-
             Mstep_mix(x, pvals, dist,
-                      Estep_res$Hhat, Estep_res$bhat, 
+                      Estep_res$Hhat, Estep_res$bhat,
                       model$algo$pifun, model$algo$mufun,
                       model$args$piargs, model$args$muargs,
                       type = type[1])
@@ -60,15 +60,17 @@ EM_mix <- function(x, pvals, s, dist, model,
         old_mux <- mux
         if (verbose){
             utils::setTxtProgressBar(pb, step)
-        }        
+        }
     }
-    if (verbose){    
+    if (verbose){
         cat("\n")
     }
     params <- list(pix = pix, mux = mux)
     loglik <- EM_loglik(pvals, dist, params$pix, params$mux,
                         Estep_res$Hhat, Estep_res$bhat)
     info <- list(pi = Mstep_res$pi_info, mu = Mstep_res$mu_info)
-    
-    return(list(params = params, loglik = loglik, info = info))
+    model_fit <- list(pi = Mstep_res$pi_fit, mu = Mstep_res$mu_fit)
+
+    return(list(params = params, loglik = loglik, info = info,
+                model_fit = model_fit))
 }

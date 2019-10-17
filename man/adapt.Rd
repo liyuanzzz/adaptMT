@@ -4,11 +4,12 @@
 \alias{adapt}
 \title{Adaptive P-value Thresholding}
 \usage{
-adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45,
-  length(pvals)), alphas = seq(0.01, 1, 0.01), params0 = list(pix =
-  NULL, mux = NULL), nfits = 20, nms = 1, niter_fit = 10,
-  tol = 1e-04, niter_ms = 20, cr = "BIC", fs = TRUE,
-  verbose = list(print = TRUE, fit = FALSE, ms = TRUE))
+adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45, length(pvals)),
+  alphas = seq(0.01, 1, 0.01), params0 = list(pix = NULL, mux = NULL),
+  nfits = 20, nms = 1, niter_fit = 10, tol = 1e-04, niter_ms = 20,
+  cr = "BIC", fs = TRUE, use_cv = FALSE, n_folds = 5,
+  pred_model_pi = NULL, pred_model_mu = NULL, verbose = list(print = TRUE,
+  fit = FALSE, ms = TRUE))
 }
 \arguments{
 \item{x}{covariates (i.e. side-information). Should be compatible to \code{models}. See Details}
@@ -39,6 +40,14 @@ adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45,
 
 \item{fs}{logical. Indicate whether the +1 correction is needed in FDPhat}
 
+\item{use_cv}{logical, denoting whether or not the CV version of model selection is used.}
+
+\item{n_folds}{Number of folds for the CV version of model selection (default is 5).}
+
+\item{pred_model_pi}{Function used to predict the pix fitted values in the CV version of EM.}
+
+\item{pred_model_mu}{Function used to predict the mux fitted values in the CV version of EM.}
+
 \item{verbose}{a list of logical values in the form of list(print = , fit = , ms = ). Each element indicates whether the relevant information is outputted to the console. See Details}
 }
 \value{
@@ -52,6 +61,7 @@ adapt(x, pvals, models, dist = beta_family(), s0 = rep(0.45,
 \item{dist}{same as the input \code{dist}}
 \item{models}{a list of \code{adapt_model} objects of length \code{params}. The model used in each fitting step. As in \code{params}, it only contains the model when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
 \item{info}{a list of length \code{nfits}. Each element is a list recording extra information in each fitting step, e.g. degree of freedom (df) and variable importance (vi). As in \code{params}, it only contains the model information when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
+\item{model_fit}{a list of length \code{nfits}. Each element is a list with the models fit in each step of the search for both pi and mu.}
 \item{args}{a list including the other inputs \code{nfits}, \code{nms}, \code{niter_fit}, \code{niter_ms}, \code{tol}, \code{cr}}.
 }
 \description{

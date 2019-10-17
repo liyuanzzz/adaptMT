@@ -77,12 +77,28 @@ check_pkgs <- function(models){
             stop("'mgcv' package not found. Please install.")
         }
     }
+
+    if ("bam" %in% models_names){
+      ind <- which(models_names == "bam")
+      tmp <- sapply(models, function(model){is.null(model$algo)})
+      if (any(tmp) && !requireNamespace("mgcv", quietly = TRUE)){
+        stop("'mgcv' package not found. Please install.")
+      }
+    }
+
     if ("glmnet" %in% models_names){
         ind <- which(models_names == "glmnet")
         tmp <- sapply(models, function(model){is.null(model$algo)})
         if (any(tmp) && !requireNamespace("glmnet", quietly = TRUE)){
             stop("'glmnet' package not found. Please install.")
         }
+    }
+    if ("xgboost" %in% models_names){
+      ind <- which(models_names == "xgboost")
+      tmp <- sapply(models, function(model){is.null(model$algo)})
+      if (any(tmp) && !requireNamespace("xgboost", quietly = TRUE)){
+        stop("'xgboost' package not found. Please install.")
+      }
     }
     return(invisible())
 }
@@ -120,6 +136,10 @@ check_pkgs <- function(models){
 #' @param niter_ms a positive integer. Number of EM iterations in model selection
 #' @param cr a string. The criterion for model selection with BIC as default. Also support AIC, AICC and HIC
 #' @param fs logical. Indicate whether the +1 correction is needed in FDPhat
+#' @param use_cv logical, denoting whether or not the CV version of model selection is used.
+#' @param n_folds Number of folds for the CV version of model selection (default is 5).
+#' @param pred_model_pi Function used to predict the pix fitted values in the CV version of EM.
+#' @param pred_model_mu Function used to predict the mux fitted values in the CV version of EM.
 #' @param verbose a list of logical values in the form of list(print = , fit = , ms = ). Each element indicates whether the relevant information is outputted to the console. See Details
 #'
 #' @return
@@ -133,6 +153,7 @@ check_pkgs <- function(models){
 #' \item{dist}{same as the input \code{dist}}
 #' \item{models}{a list of \code{adapt_model} objects of length \code{params}. The model used in each fitting step. As in \code{params}, it only contains the model when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
 #' \item{info}{a list of length \code{nfits}. Each element is a list recording extra information in each fitting step, e.g. degree of freedom (df) and variable importance (vi). As in \code{params}, it only contains the model information when a new target FDR level is achieved and each element corresponds to an element of \code{params}.}
+#' \item{model_fit}{a list of length \code{nfits}. Each element is a list with the models fit in each step of the search for both pi and mu.}
 #' \item{args}{a list including the other inputs \code{nfits}, \code{nms}, \code{niter_fit}, \code{niter_ms}, \code{tol}, \code{cr}}.
 #'
 #' @examples
@@ -171,6 +192,9 @@ adapt <- function(x, pvals, models,
                   niter_fit = 10, tol = 1e-4,
                   niter_ms = 20, cr = "BIC",
                   fs = TRUE,
+                  use_cv = FALSE,
+                  n_folds = 5,
+                  pred_model_pi = NULL, pred_model_mu = NULL,
                   verbose = list(print = TRUE, fit = FALSE, ms = TRUE)
                   ){
 
@@ -195,10 +219,11 @@ adapt <- function(x, pvals, models,
     ## Check if necessary packages are installed.
     check_pkgs(models)
 
-    ## When a single model is provided, set 'nms' to be NULL
+    ## When a single model is provided, set 'nms' to be NULL and use_CV to be FALSE
     if (class(models) == "adapt_model"){
         model <- models
         nms <- NULL
+        use_cv <- FALSE
     } else if (is.list(models)){
         types <- sapply(models, class)
         if (any(types != "adapt_model")){
@@ -213,6 +238,7 @@ adapt <- function(x, pvals, models,
         if (length(models) == 1){
             model <- models[[1]]
             nms <- NULL
+            use_cv <- FALSE
         }
     }
 
@@ -227,11 +253,22 @@ adapt <- function(x, pvals, models,
         verbose = verbose$fit, type = Mstep_type
         )
     if (any(stamps[, 2] == "ms")){
+      if (use_cv) {
         ms_args_root <- list(
-            x = x, pvals = pvals, dist = dist, models = models,
-            cr = cr, niter = niter_ms, tol = tol,
-            verbose = verbose$ms, type = Mstep_type
-            )
+          x = x, pvals = pvals, dist = dist, models = models,
+          niter = niter_ms, tol = tol,
+          verbose = verbose$ms, type = Mstep_type,
+          n_folds = n_folds,
+          pred_model_pi = pred_model_pi, pred_model_mu = pred_model_mu
+        )
+      }  else {
+        ms_args_root <- list(
+          x = x, pvals = pvals, dist = dist, models = models,
+          cr = cr, niter = niter_ms, tol = tol,
+          verbose = verbose$ms, type = Mstep_type
+        )
+      }
+
     }
 
     ## Initialization
@@ -259,6 +296,8 @@ adapt <- function(x, pvals, models,
     params_return <- list() # parameters (including pix and mux)
     model_list <- list() # all selected models
     info_list <- list() # other information (df, vi, etc.)
+    model_fit_list <- list() # list of the actual fitted models
+    model_holdout_ll_sums_list <- list() # list of cross-validation holdout log-likelihood sums
     reveal_order <- which((pvals > s) & (pvals < 1 - s)) # the order to be revealed
     if (length(reveal_order) > 0){
         init_pvals <- pvals[reveal_order]
@@ -294,15 +333,33 @@ adapt <- function(x, pvals, models,
 
         ## Model selection or model fitting
         if (type == "ms"){
+          # Check to see if the CV version of model-selection is to be used:
+          if (use_cv) {
             ms_args <- c(
-                list(s = s, params0 = params),
-                ms_args_root
-                )
+              list(s = s, params0 = params,
+                   mask = mask),
+              ms_args_root
+            )
+            ## Use "EM_mix_ms_cv" from "EM-mix-ms-cv.R"
+            ms_res <- do.call(EM_mix_ms_cv, ms_args)
+            params <- ms_res$params
+            model <- ms_res$model
+            modinfo <- ms_res$info
+            model_fit <- ms_res$model_fit
+            model_holdout_ll_sums_list <- append(model_holdout_ll_sums_list,
+                                                 list(ms_res$model_holdout_ll_sums))
+          } else {
+            ms_args <- c(
+              list(s = s, params0 = params),
+              ms_args_root
+            )
             ## Use "EM_mix_ms" from "EM-mix-ms.R"
             ms_res <- do.call(EM_mix_ms, ms_args)
             params <- ms_res$params
             model <- ms_res$model
             modinfo <- ms_res$info
+            model_fit <- ms_res$model_fit
+          }
         } else if (type == "fit"){
             fit_args <- c(
                 list(s = s, params0 = params, model = model),
@@ -312,6 +369,7 @@ adapt <- function(x, pvals, models,
             fit_res <- do.call(EM_mix, fit_args)
             params <- fit_res$params
             modinfo <- fit_res$info
+            model_fit <- fit_res$model_fit
         }
 
         if (length(params_return) == 0 ||
@@ -321,6 +379,7 @@ adapt <- function(x, pvals, models,
             params_return <- append(params_return, list(params))
             model_list <- append(model_list, list(model))
             info_list <- append(info_list, modinfo)
+            model_fit_list <- append(model_fit_list, model_fit)
         }
 
         ## Estimate local FDR
@@ -421,10 +480,13 @@ adapt <- function(x, pvals, models,
              params = params_return,
              qvals = qvals,
              order = reveal_order,
+             fdp_order = fdp_return,
              alphas = alphas,
              dist = dist,
              models = model_list,
              info = info_list,
+             model_fit = model_fit_list,
+             model_holdout_ll_sums = model_holdout_ll_sums_list,
              args = args),
         class = "adapt")
     return(res)

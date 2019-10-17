@@ -18,7 +18,7 @@ EM_mix_ms <- function(x, pvals, s, dist, models,
                       type = "unweighted"){
     n <- length(pvals)
     info_cr_val <- -Inf
-    
+
     m <- length(models)
     if (verbose){
         cat("Model selection starts!\n")
@@ -37,7 +37,7 @@ EM_mix_ms <- function(x, pvals, s, dist, models,
             warning(paste0("Model ", i, " fails."))
             next
         }
-        
+
         loglik <- fit$loglik
         df <- fit$info$pi$df + fit$info$mu$df
         val <- info_cr(loglik, cr, df, n)
@@ -46,13 +46,14 @@ EM_mix_ms <- function(x, pvals, s, dist, models,
             info_cr_val <- val
             best_model <- models[[i]]
             best_model_info <- fit$info
+            best_model_fit <- fit$model_fit
         }
 
         if (verbose){
             setTxtProgressBar(pb, i)
         }
     }
-    if (verbose){    
+    if (verbose){
         cat("\n")
     }
     if (info_cr_val == -Inf){
@@ -60,5 +61,6 @@ EM_mix_ms <- function(x, pvals, s, dist, models,
     }
     return(list(model = best_model,
                 params = params,
-                info = best_model_info))
+                info = best_model_info,
+                model_fit = best_model_fit))
 }
