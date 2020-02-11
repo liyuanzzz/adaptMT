@@ -379,7 +379,9 @@ adapt <- function(x, pvals, models,
             params_return <- append(params_return, list(params))
             model_list <- append(model_list, list(model))
             info_list <- append(info_list, modinfo)
-            model_fit_list <- append(model_fit_list, model_fit)
+            # NOTE: The following leads to only the last model returned rather
+            #       than all of the models:
+            model_fit_list <- model_fit # append(model_fit_list, list(model_fit))
         }
 
         ## Estimate local FDR
