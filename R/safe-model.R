@@ -127,7 +127,7 @@ safe_xgboost <- function(x, y, family, weights = NULL, ...) {
 
   # With the way xgboost is set up, each of the possible options will require
   # separate instances, can just use a named vector to access each:
-  family_list <- c("gaussian" = "reg:linear",
+  family_list <- c("gaussian" = "reg:squarederror",
                    "binomial" = "binary:logistic",
                    "poisson" = "count:poisson",
                    "multinomial" = "multi:softmax",
