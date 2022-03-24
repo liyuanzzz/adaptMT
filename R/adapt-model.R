@@ -129,10 +129,11 @@ gen_adapt_model_glm <- function(dist,
                  family = dist$family, ...)
     }
 
-    pifun_init <- function(x, pvals, s, ...){
+    pifun_init <- function(x, pvals, s, masking_fun, ...){
+      zeta <- masking_fun("zeta")
         J <- ifelse(
-            pvals < s | pvals > 1 - s, 1,
-            2 * s / (2 * s - 1)
+          pvals < s | (check_if_masked(pvals,s,masking_fun)), 1,
+          (1 + zeta) * s / ((1 + zeta) * s - 1)
             )
         if (any(s >= 0.49)){
             J[s >= 0.49] <- 0
@@ -148,10 +149,10 @@ gen_adapt_model_glm <- function(dist,
         fit_pi(fun, args, type = "init")
     }
 
-    mufun_init <- function(x, pvals, s, ...){
+    mufun_init <- function(x, pvals, s, masking_fun, ...){
         phat <- ifelse(
-            pvals < s | pvals > 1 - s,
-            pmin(pvals, 1 - pvals),
+          pvals < s | (check_if_masked(pvals,s,masking_fun)),
+          pmin(pvals, masking_fun(pvals)),
             pvals
             )
         phat <- pminmax(phat, 1e-15, 1-1e-15)
@@ -192,10 +193,11 @@ gen_adapt_model_gam <- function(dist,
                  family = dist$family, ...)
     }
 
-    pifun_init <- function(x, pvals, s, ...){
-        J <- ifelse(
-            pvals < s | pvals > 1 - s, 1,
-            2 * s / (2 * s - 1)
+    pifun_init <- function(x, pvals, s, masking_fun,...){
+      zeta <- masking_fun("zeta")
+      J <- ifelse(
+        pvals < s | (check_if_masked(pvals,s,masking_fun)), 1,
+        (1 + zeta) * s / ((1 + zeta) * s - 1)
             )
         if (any(s >= 0.49)){
             J[s >= 0.49] <- 0
@@ -211,11 +213,11 @@ gen_adapt_model_gam <- function(dist,
         fit_pi(fun, args, type = "init")
     }
 
-    mufun_init <- function(x, pvals, s, ...){
-        phat <- ifelse(
-            pvals < s | pvals > 1 - s,
-            pmin(pvals, 1 - pvals),
-            pvals
+    mufun_init <- function(x, pvals, s, masking_fun, ...){
+      phat <- ifelse(
+        pvals < s | (check_if_masked(pvals,s,masking_fun)),
+        pmin(pvals, masking_fun(pvals)),
+        pvals
             )
         phat <- pminmax(phat, 1e-15, 1-1e-15)
         yhat <- dist$g(phat)
@@ -256,10 +258,11 @@ gen_adapt_model_glmnet <- function(dist,
                     family = dist$family, ...)
     }
 
-    pifun_init <- function(x, pvals, s, ...){
-        J <- ifelse(
-            pvals < s | pvals > 1 - s, 1,
-            2 * s / (2 * s - 1)
+    pifun_init <- function(x, pvals, s, masking_fun,...){
+      zeta <- masking_fun("zeta")
+      J <- ifelse(
+        pvals < s | (check_if_masked(pvals,s,masking_fun)), 1,
+        (1 + zeta) * s / ((1 + zeta) * s - 1)
             )
         if (any(s >= 0.49)){
             J[s >= 0.49] <- 0
@@ -275,11 +278,11 @@ gen_adapt_model_glmnet <- function(dist,
         fit_pi(fun, args, type = "init")
     }
 
-    mufun_init <- function(x, pvals, s, ...){
-        phat <- ifelse(
-            pvals < s | pvals > 1 - s,
-            pmin(pvals, 1 - pvals),
-            pvals
+    mufun_init <- function(x, pvals, s, masking_fun, ...){
+      phat <- ifelse(
+        pvals < s | (check_if_masked(pvals,s,masking_fun)),
+        pmin(pvals, masking_fun(pvals)),
+        pvals
             )
         phat <- pminmax(phat, 1e-15, 1-1e-15)
         yhat <- dist$g(phat)
@@ -316,10 +319,11 @@ gen_adapt_model_xgboost <- function(dist,
                 family = dist$family, ...)
   }
 
-  pifun_init <- function(x, pvals, s, ...){
+  pifun_init <- function(x, pvals, s, masking_fun,...){
+    zeta <- masking_fun("zeta")
     J <- ifelse(
-      pvals < s | pvals > 1 - s, 1,
-      2 * s / (2 * s - 1)
+      pvals < s | (check_if_masked(pvals,s,masking_fun)), 1,
+      (1 + zeta) * s / ((1 + zeta) * s - 1)
     )
     if (any(s >= 0.49)){
       J[s >= 0.49] <- 0
@@ -335,10 +339,10 @@ gen_adapt_model_xgboost <- function(dist,
     fit_pi(fun, args, type = "init")
   }
 
-  mufun_init <- function(x, pvals, s, ...){
+  mufun_init <- function(x, pvals, s, masking_fun, ...){
     phat <- ifelse(
-      pvals < s | pvals > 1 - s,
-      pmin(pvals, 1 - pvals),
+      pvals < s | (check_if_masked(pvals,s,masking_fun)),
+      pmin(pvals, masking_fun(pvals)),
       pvals
     )
     phat <- pminmax(phat, 1e-15, 1-1e-15)

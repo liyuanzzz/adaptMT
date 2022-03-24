@@ -18,17 +18,21 @@
 ## ' @return Imputed values, including
 ## ' \item{Hhat}{a vector of values in [0, 1]. Imputed values for \eqn{H_{i}}{Hi}'s}
 ## ' \item{phat}{a vector of values in [0, 1]. Imputed values for \eqn{p_{i}}{pi}'s}
-Estep_mix <- function(pvals, s, dist, pix, mux){
+Estep_mix <- function(pvals, s, dist, pix, mux, masking_fun){
+    zeta <- masking_fun("zeta")
+
     hp <- dist$h(pvals, mux)
-    hp_mir <- dist$h(1 - pvals, mux)
+    hp_mir <- dist$h(masking_fun(pvals), mux)
     Hhat <- ifelse(
-        pvals < s | pvals > 1 - s,
-        1 / (1 + 2 * (1 - pix) / pix / (hp + hp_mir)),
-        1 / (1 + (1 - pix) / pix / hp)
-        )
+        pvals < s,
+        1 / (1 + (1 + zeta) * (1 - pix) / pix / (hp + zeta * hp_mir)),
+        ifelse( (check_if_masked(pvals,s,masking_fun)),
+                1 / (1 + (1 + zeta) * (1 - pix) / pix / (zeta * hp +  hp_mir)),
+                1 / (1 + (1 - pix) / pix / hp))
+    )
     Hhat <- pminmax(Hhat, 1e-5, 1-1e-5)
     bhat <- ifelse(
-        pvals < s | pvals > 1 - s,
+        pvals < s | (check_if_masked(pvals,s,masking_fun)),
         hp / (hp + hp_mir),
         1
         )

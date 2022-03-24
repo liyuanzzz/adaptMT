@@ -5,8 +5,26 @@
 # Available from http://arxiv.org/abs/1609.06035
 #---------------------------------------------------------------
 
-fdp_hat <- function(A, R, fs = TRUE){
-    (as.numeric(fs) + A) / pmax(1, R)
+fdp_hat <- function(A, R, fs = TRUE, zeta){
+  (as.numeric(fs) + A) / zeta / pmax(1, R)
+}
+
+select_masking_params <- function(n,alpha_m,zeta,lambda){
+  if(is.null(alpha_m) | is.null(zeta) | is.null(lambda)){
+    warning("Masking parameter alpha_m, zeta, or lambda found to be NULL. Automatically selecting masking function. See documentation for details.")
+    if(is.null(zeta)){
+      zeta <- min(20,max(6000/n,2))
+    }
+    alpha_m <- 0.9 / (zeta + 1)
+    lambda <- alpha_m
+  }else{
+    if(alpha_m < 0 | lambda < alpha_m | alpha_m * zeta + lambda < lambda | alpha_m * zeta + lambda > 1){
+      stop("Invalid alpha_m, lambda, or zeta parameter.
+            Must satisfy 0 < alpha_m <= lambda < alpha_m * zeta + lambda <= 1")
+    }
+  }
+  masking_params <- list(alpha_m=alpha_m, zeta=zeta, lambda=lambda)
+  return(masking_params)
 }
 
 
@@ -122,6 +140,10 @@ check_pkgs <- function(models){
 #'
 #' The output \code{order} gives the order of (the indices of) p-values being revealed, i.e. being in the region (s, 1-s). The latter hypotheses appeared in \code{order} have smaller q-values (i.e. are more likely to be rejected).
 #'
+#' The constraint on these masking function parameters is
+#' \deqn{0< \alpha_m \le \lambda <\lambda+ \alpha_m\zeta\le 1.}
+#' Setting \code{alpha_m} to 0.5, \code{lambda} to 0.5, \code{zeta} to 1, and \code{masking_shape} to "\code{tent}" results in the usual AdaPT masking function.
+#'
 #' @param x covariates (i.e. side-information). Should be compatible to \code{models}. See Details
 #' @param pvals a vector of values in [0, 1]. P-values
 #' @param models an object of class "\code{adapt_model}" or a list of objects of class "adapt_model". See Details
@@ -141,7 +163,10 @@ check_pkgs <- function(models){
 #' @param pred_model_pi Function used to predict the pix fitted values in the CV version of EM.
 #' @param pred_model_mu Function used to predict the mux fitted values in the CV version of EM.
 #' @param verbose a list of logical values in the form of list(print = , fit = , ms = ). Each element indicates whether the relevant information is outputted to the console. See Details
-#'
+#' @param alpha_m a positive scalar. Upper bound for red region.
+#' @param lambda a positive scalar. Lower bound for blue region.
+#' @param zeta a positive scalar. Ratio of length of blue to red region.
+#' @param masking_shape a string. Options include "\code{tent}" or "\code{comb}" with "\code{tent}" as default.
 #' @return
 #' \item{nrejs}{a vector of integers. Number of rejections for each alpha}
 #' \item{rejs}{a list of vector of integers. The set of indices of rejections for each alpha}
@@ -195,7 +220,11 @@ adapt <- function(x, pvals, models,
                   use_cv = FALSE,
                   n_folds = 5,
                   pred_model_pi = NULL, pred_model_mu = NULL,
-                  verbose = list(print = TRUE, fit = FALSE, ms = TRUE)
+                  verbose = list(print = TRUE, fit = FALSE, ms = TRUE),
+                  alpha_m = NULL,
+                  lambda = NULL,
+                  zeta = NULL,
+                  masking_shape = "tent"
                   ){
 
     Mstep_type <- "unweighted"
@@ -215,6 +244,23 @@ adapt <- function(x, pvals, models,
     if (class(dist)[1] != "exp_family"){
         stop("\'dist\' must be of class \'exp_family\'.")
     }
+
+    masking_params <- select_masking_params(n=length(pvals),
+                                            alpha_m = alpha_m, lambda = lambda, zeta = zeta)
+    masking_params$shape <- masking_shape
+    alpha_m <- masking_params$alpha_m
+    lambda <- masking_params$lambda
+    zeta <- masking_params$zeta
+
+    if (any(s0>alpha_m)){
+      warning("Initial \'s0\' is greater than alpha_m. Defaulting to 90% of alpha_m.")
+      s0 <- rep(0.9 * alpha_m, length(pvals))
+    }
+
+
+    masking_fun <- masking_function(alpha_m=alpha_m, zeta=zeta,
+                                    lambda=lambda,masking_shape=masking_shape)
+    mask_thres <- masking_fun("thres")
 
     ## Check if necessary packages are installed.
     check_pkgs(models)
@@ -243,7 +289,8 @@ adapt <- function(x, pvals, models,
     }
 
     ## Create time stamps when model is fitted or model selection is performed
-    nmasks <- sum(pvals <= s0) + sum(pvals >= 1 - s0)
+    nmasks <- sum(pvals <= s0) +
+      sum(check_if_masked(pvals,s0,masking_fun,masking_shape,mask_thres,lambda))
     stamps <- create_stamps(nmasks, nfits, nms)
 
     ## Create root arguments to simplify fitting and model selection
@@ -275,9 +322,9 @@ adapt <- function(x, pvals, models,
     n <- length(pvals)
     params <- params0
     s <- s0
-    A <- sum(pvals >= 1 - s)
+    A <- sum(check_if_masked(pvals,s,masking_fun,masking_shape,mask_thres,lambda))
     R <- sum(pvals <= s)
-    minfdp <- fdp_hat(A, R, fs) # initial FDPhat
+    minfdp <- fdp_hat(A, R, fs, zeta) # initial FDPhat
 
     ## Remove the alphas greater than the initial FDPhat, except the smallest one among them
     alphas <- sort(alphas)
@@ -298,7 +345,14 @@ adapt <- function(x, pvals, models,
     info_list <- list() # other information (df, vi, etc.)
     model_fit_list <- list() # list of the actual fitted models
     model_holdout_ll_sums_list <- list() # list of cross-validation holdout log-likelihood sums
-    reveal_order <- which((pvals > s) & (pvals < 1 - s)) # the order to be revealed
+    if(masking_shape == "tent"){
+      reveal_order <- which((pvals > s & pvals < masking_fun(s)) |
+                              pvals > mask_thres)
+    }else{
+      reveal_order <- which((pvals > s & pvals < lambda) |
+                              pvals > masking_fun(s))
+    }
+    # the order to be revealed
     if (length(reveal_order) > 0){
         init_pvals <- pvals[reveal_order]
         reveal_order <- reveal_order[order(init_pvals, decreasing = TRUE)]
@@ -320,11 +374,11 @@ adapt <- function(x, pvals, models,
         }
 
         alpha <- alphas[alphaind]
-        # mask <- (pvals <= s) | (pvals >= 1 - s)
+
         mask <- rep(TRUE, n)
         mask[reveal_order] <- FALSE
         nmasks <- sum(mask)
-        A <- sum(pvals >= 1 - s)
+        A <- sum(check_if_masked(pvals,s,masking_fun,masking_shape,mask_thres,lambda))
         R <- sum(pvals <= s)
         start <- stamps[i, 1]
         end <- stamps[i + 1, 1]
@@ -337,7 +391,7 @@ adapt <- function(x, pvals, models,
           if (use_cv) {
             ms_args <- c(
               list(s = s, params0 = params,
-                   mask = mask),
+                   masking_fun = masking_fun),
               ms_args_root
             )
             ## Use "EM_mix_ms_cv" from "EM-mix-ms-cv.R"
@@ -362,7 +416,7 @@ adapt <- function(x, pvals, models,
           }
         } else if (type == "fit"){
             fit_args <- c(
-                list(s = s, params0 = params, model = model),
+              list(s = s, params0 = params, model = model, masking_fun = masking_fun),
                 fit_args_root
                 )
             ## Use "EM_mix" from "EM-mix.R"
@@ -386,16 +440,16 @@ adapt <- function(x, pvals, models,
 
         ## Estimate local FDR
         lfdr <- compute_lfdr_mix(
-            pmin(pvals, 1 - pvals),
+          pmin(pvals, masking_fun(pvals)),
             dist, params, lfdr_type)
         ## Find the top "nreveals" hypotheses with highest lfdr
         lfdr[!mask] <- -Inf
         inds <- order(lfdr, decreasing = TRUE)[1:nreveals]
         reveal_order <- c(reveal_order, inds)
         ## Shortcut to calculate FDPhat after revealing the hypotheses one by one
-        Adecre <- cumsum(pvals[inds] >= 1 - s[inds])
+        Adecre <- cumsum(check_if_masked(pvals[inds],s[inds],masking_fun,masking_shape,mask_thres,lambda))
         Rdecre <- cumsum(pvals[inds] <= s[inds])
-        fdp <- fdp_hat(A - Adecre, R - Rdecre, fs)
+        fdp <- fdp_hat(A - Adecre, R - Rdecre, fs, zeta)
         fdp_return <- c(fdp_return, fdp)
         fdp <- pmin(fdp, minfdp)
         ## Calculate the current minimum FDPhat
@@ -411,7 +465,7 @@ adapt <- function(x, pvals, models,
 
                 ## Sanity check to avoid rounding errors
                 tmp_pvals <- pvals[inds[1:breakpoint]]
-                tmp_pvals <- pmin(tmp_pvals, 1 - tmp_pvals)
+                tmp_pvals <- pmin(tmp_pvals, masking_fun(tmp_pvals))
                 tmp_inds <- which(tmp_pvals <= snew[inds[1:breakpoint]])
                 if (length(tmp_inds) > 0){
                     snew[inds[tmp_inds]] <- pmin(snew[inds[tmp_inds]], tmp_pvals[tmp_inds] - 1e-15)
@@ -449,7 +503,7 @@ adapt <- function(x, pvals, models,
 
         ## Sanity check to avoid rounding errors
         tmp_pvals <- pvals[inds]
-        tmp_pvals <- pmin(tmp_pvals, 1 - tmp_pvals)
+        tmp_pvals <- pmin(tmp_pvals, masking_fun(tmp_pvals))
         tmp_inds <- which(tmp_pvals <= snew[inds])
         if (length(tmp_inds) > 0){
             s[inds[tmp_inds]] <- pmin(s[inds[tmp_inds]], tmp_pvals[tmp_inds] - 1e-15)
@@ -459,7 +513,7 @@ adapt <- function(x, pvals, models,
     remain_inds <- (1:n)[-reveal_order]
     if (length(remain_inds) > 0){
         tmp_pvals <- pvals[remain_inds]
-        tmp_pvals <- pmin(tmp_pvals, 1 - tmp_pvals)
+        tmp_pvals <- pmin(tmp_pvals, masking_fun(tmp_pvals))
         remain_reveal_order <- remain_inds[order(tmp_pvals, decreasing = TRUE)]
         reveal_order <- c(reveal_order, remain_reveal_order)
         fdp_return <- c(fdp_return, rep(minfdp, length(remain_inds)))
@@ -489,7 +543,8 @@ adapt <- function(x, pvals, models,
              info = info_list,
              model_fit = model_fit_list,
              model_holdout_ll_sums = model_holdout_ll_sums_list,
-             args = args),
+             args = args,
+             masking_params = masking_params),
         class = "adapt")
     return(res)
 }

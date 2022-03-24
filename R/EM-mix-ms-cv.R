@@ -14,7 +14,8 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                          params0 = list(pix = NULL, mux = NULL),
                          niter = 20, tol = 1e-4,
                          verbose = TRUE,
-                         type = "unweighted") {
+                         type = "unweighted",
+                         masking_fun) {
 
   m <- length(models)
   if (verbose) {
@@ -52,7 +53,7 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                                                                   pvals[-k_cv_holdout_i[[fold_i]]],
                                                                   s[-k_cv_holdout_i[[fold_i]]], dist,
                                                                   model, train_params0, niter, tol,
-                                                                  type = type),
+                                                                  type = type, masking_fun = masking_fun),
                                                            silent = TRUE
                                                          )
                                                          if (class(fit)[1] == "try-error"){
@@ -76,12 +77,13 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
                                                            # Get the E-step parameters:
                                                            test_Estep <- Estep_mix(pvals[k_cv_holdout_i[[fold_i]]],
                                                                                          s[k_cv_holdout_i[[fold_i]]],
-                                                                                           dist, test_pix, test_mux)
+                                                                                           dist, test_pix, test_mux,
+                                                                                   masking_fun = masking_fun)
 
                                                            # Now return the holdout log-likelihood:
                                                            EM_loglik(pvals[k_cv_holdout_i[[fold_i]]], dist,
                                                                      test_pix, test_mux,
-                                                                     test_Estep$Hhat, test_Estep$bhat)
+                                                                     test_Estep$Hhat, test_Estep$bhat, masking_fun)
                                                          }
                                                        })
                             # Return sum of holdout log-likelihood:
@@ -109,7 +111,7 @@ EM_mix_ms_cv <- function(x, pvals, s, dist, models,
   # Now just fit the best model on all data:
   model <- complete_model(models[[best_model_i]], dist)
   final_fit <- EM_mix(x, pvals, s, dist, model, params0, niter, tol,
-                      type = type)
+                      type = type, masking_fun = masking_fun)
 
   loglik <- final_fit$loglik
   params <- final_fit$params
