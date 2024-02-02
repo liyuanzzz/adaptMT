@@ -143,6 +143,7 @@ safe_xgboost <- function(x, y, family, weights = NULL, ...) {
   # additional passed in arguments:
   fit <- xgboost::xgboost(data = x, label = y, weight = weights,
                           objective = family_list[[family]],
+                          nrounds=5, # nrounds has no default value in xgboost
                           ...)
 
   # Get the predicted values using the boosting model
